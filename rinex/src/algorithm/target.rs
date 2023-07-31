@@ -3,6 +3,7 @@ use crate::navigation;
 use crate::navigation::{orbits::NAV_ORBITS, FrameClass, MsgType};
 use crate::observable;
 use crate::observable::Observable;
+use crate::observation::LliFlags;
 use crate::prelude::*;
 use crate::sv;
 use std::str::FromStr;
@@ -70,6 +71,8 @@ pub enum TargetItem {
     NavFrameItem(Vec<FrameClass>),
     /// (Rx) ClockItem
     ClockItem,
+    /// LLI combinatorial condition
+    Lli(LliFlags),
 }
 
 impl std::ops::BitOrAssign for TargetItem {
@@ -140,6 +143,10 @@ impl std::ops::BitOr for TargetItem {
                     }
                     Self::NavFrameItem(lhs)
                 },
+                _ => self.clone(),
+            },
+            Self::Lli(lhs) => match rhs {
+                Self::Lli(rhs) => Self::Lli(lhs | rhs),
                 _ => self.clone(),
             },
             _ => self.clone(),
@@ -285,6 +292,12 @@ impl std::str::FromStr for TargetItem {
             //TODO improve this:
             // do not test 1st entry only but all possible content
             Ok(Self::NavMsgItem(parse_nav_msg(items)?))
+        }
+        /*
+         * Lli combinatorial condition(s)
+         */
+        else if let Ok(flags) = LliFlags::from_str(items[0].trim()) {
+            Ok(Self::Lli(flags))
         } else {
             // try to match an existing Orbit field
             // For this, we browse all known Orbit fields and try to match one of them
@@ -384,6 +397,12 @@ impl From<Vec<Observable>> for TargetItem {
     }
 }
 
+impl From<LliFlags> for TargetItem {
+    fn from(flags: LliFlags) -> Self {
+        Self::Lli(flags)
+    }
+}
+
 impl std::fmt::Display for TargetItem {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
@@ -473,5 +492,15 @@ mod test {
             TargetItem::from_snr(desc).is_ok(),
             "Failed to parse SNR Target Item"
         );
+    }
+    #[test]
+    fn test_from_lli() {
+        for desc in vec!["  as ", "lol ", "ok", "nok "] {
+            assert!(
+                TargetItem::from_str(desc).is_ok(),
+                "Failed to parse LLI condition \"{}\"",
+                desc
+            );
+        }
     }
 }

@@ -173,6 +173,30 @@ impl std::ops::Not for MaskFilter {
     }
 }
 
+impl std::ops::BitAnd for MaskFilter {
+    type Output = Self;
+    // bitand() is only supported when inner type
+    // is bitflag
+    fn bitand(self, rhs: Self) -> Self {
+        match self.item {
+            TargetItem::Lli(lhs) => match rhs.item {
+                TargetItem::Lli(rhs) => Self {
+                    operand: MaskOperand::Equals,
+                    item: TargetItem::Lli(lhs & rhs),
+                },
+                _ => self.clone(),
+            },
+            _ => self.clone(),
+        }
+    }
+}
+
+impl std::ops::BitAndAssign for MaskFilter {
+    fn bitand_assign(&mut self, rhs: Self) {
+        *self &= rhs
+    }
+}
+
 impl std::ops::BitOr for MaskFilter {
     type Output = Self;
     fn bitor(self, rhs: Self) -> Self {
@@ -190,7 +214,7 @@ impl std::ops::BitOr for MaskFilter {
 
 impl std::ops::BitOrAssign for MaskFilter {
     fn bitor_assign(&mut self, rhs: Self) {
-        self.item = self.item.clone() | rhs.item;
+        *self |= rhs
     }
 }
 
@@ -296,7 +320,9 @@ impl std::str::FromStr for MaskFilter {
 mod test {
     use super::*;
     use crate::navigation::{FrameClass, MsgType};
+    use crate::observation::LliFlags;
     use crate::prelude::*;
+    use std::ops::Not;
     use std::str::FromStr;
     #[test]
     fn mask_operand() {
@@ -509,5 +535,28 @@ mod test {
                 item: TargetItem::NavMsgItem(vec![MsgType::LNAV]),
             }
         );
+    }
+    #[test]
+    fn lli_mask() {
+        for (desc, expected) in vec![
+            ("ok", LliFlags::OK_OR_UNKNOWN),
+            ("!ok", LliFlags::OK_OR_UNKNOWN.not()),
+            ("nok", LliFlags::OK_OR_UNKNOWN.not()),
+            ("lock", LliFlags::LOCK_LOSS.not()),
+            ("lol", LliFlags::LOCK_LOSS),
+            ("as", LliFlags::UNDER_ANTI_SPOOFING),
+            ("!as", LliFlags::UNDER_ANTI_SPOOFING.not()),
+        ] {
+            let mask = MaskFilter::from_str(desc);
+            assert!(mask.is_ok(), "Unable to parse MaskFilter from \"{}\"", desc);
+            let mask = mask.unwrap();
+            let item = TargetItem::from(expected);
+            assert!(
+                mask.item == item,
+                "Failed to parse {:?} from \"{}\"",
+                expected,
+                desc
+            );
+        }
     }
 }
