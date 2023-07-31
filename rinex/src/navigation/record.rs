@@ -242,8 +242,32 @@ impl Frame {
 /// ```
 /// use rinex::prelude::*;
 /// use rinex::navigation::*;
-/// let rnx = Rinex::from_file("../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx")
+/// use std::str::FromStr::*; // filter!
+///
+/// let mut rnx = Rinex::from_file("../test_resources/NAV/V3/AMEL00NLD_R_20210010000_01D_MN.rnx")
 ///     .unwrap();
+///
+/// // preprocessing : a few examples..
+/// rnx.filter_mut(filter!("decim:2")); // reduce data amount by 2 
+/// rnx.filter_mut(filter!(">= 2020-01-01T12:00:00UTC"));
+/// rnx.filter_mut(filter!("gps")); // retain only GPS system
+/// rnx.filter_mut(filter!("!glo")); // remove GLO system
+/// rnx.filter_mut(filter!(">=G08")); // retain only those PRN # 
+/// rnx.filter_mut(filter!("eph")); // retain Ephemeris frames only
+/// rnx.filter_mut(filter!("ion")); // retain ION msg frames only
+/// rnx.filter_mut(filter!("eop")); // retain EOP msg frames only
+/// rnx.filter_mut(filter!("sto")); // retain STO msg frames only
+/// rnx.filter_mut(filter!(">lnav")); // retain modern NAV frames only
+/// rnx.filter_mut(filter!("ion:klo")); // retain only Klobuchar ION models
+/// rnx.filter_mut(filter!("ion:bd")); // retain only BDGIM ION models
+/// rnx.filter_mut(filter!("ion:ng")); // retain only Nequick-G ION models
+/// rnx.filter_mut(filter!("e> 15.5")); // retain only ephemeris frames where Sv
+///                                 // was higher in the sky than 15.5° angle
+/// rnx.filter_mut(filter!("a > 25")); // retain only ephemeris frames where Sv
+///                                // angle to north pole is above 25° angle 
+/// rnx.filter_mut(filter!("cus,cis")); // retain only those data fields,
+///                                // this will reduce further possiblities a lot..
+///
 /// let record = rnx.record.as_nav()
 ///     .unwrap();
 /// for (epoch, classes) in record {
