@@ -1,5 +1,6 @@
 use bitflags::bitflags;
 use std::collections::{BTreeMap, HashMap};
+use std::ops::Not;
 use std::str::FromStr;
 use thiserror::Error;
 
@@ -41,6 +42,8 @@ pub enum Error {
     EpochParsingError,
     #[error("line is empty")]
     MissingData,
+    #[error("unknown lli condition \"{0}\"")]
+    UnknownLliCondition(String),
 }
 
 #[cfg(feature = "serde")]
@@ -61,6 +64,25 @@ bitflags! {
         /// Observing under anti spoofing,
         /// might suffer from decreased SNR - decreased signal quality
         const UNDER_ANTI_SPOOFING = 0x04;
+    }
+}
+
+impl std::str::FromStr for LliFlags {
+    type Err = Error;
+    fn from_str(content: &str) -> Result<Self, Self::Err> {
+        if content.eq("ok") {
+            Ok(Self::OK_OR_UNKNOWN)
+        } else if content.eq("nok") {
+            Ok(Self::OK_OR_UNKNOWN.not())
+        } else if content.eq("as") {
+            Ok(Self::UNDER_ANTI_SPOOFING)
+        } else if content.eq("lol") {
+            Ok(Self::LOCK_LOSS)
+        } else if content.eq("lock") {
+            Ok(Self::LOCK_LOSS.not())
+        } else {
+            Err(Error::UnknownLliCondition(content.to_string()))
+        }
     }
 }
 
